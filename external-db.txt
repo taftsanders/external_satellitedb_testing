@@ -1,6 +1,11 @@
 External db start to finish
 https://access.redhat.com/documentation/en-us/red_hat_satellite/6.6/html-single/installing_satellite_server_from_a_connected_network/index#using-external-databases
 
+Pull images:
+# podman pull postgres:9.6
+# podman login registry.redhat.io
+# podman pull registry.redhat.io/rhscl/mongodb-34-rhel7
+
 Create dumps:
 # mkdir /backup
 # chown -R 777 /backup
@@ -12,13 +17,13 @@ Create dumps:
 
 
 Copy dumps to 2nd computer and build containers:
-# scp backup.tar.gz tasander@whitehat.usersys.redhat.com:
+# scp backup.tar.gz <USER>@<HOSTNAME/IP>:
 $ tar -xvf ~/backup.tar.gz -C /var/tmp/
 $ chmod -R 777 backup/
 
 
 Start postgres container and restore dump:
-$ sudo podman run --name batman-postgres -p 10.12.214.187:5432:5432 -e POSTGRES_PASSWORD=redhat -v /var/tmp/backup/postgres:/var/lib/postgresql -d postgres
+$ sudo podman run --name <NAME>-postgres -p <HOST IP>:5432:5432 -e POSTGRES_PASSWORD=redhat -v /var/tmp/backup/postgres:/var/lib/postgresql -d postgres
 $ sudo podman exec -it e0 /bin/bash
 # su - postgres
 $ psql -U postgres -f /var/lib/postgresql/postgres.dump
@@ -32,12 +37,12 @@ $ logout
 # exit
 
 Test connection from Satellite to db host:
-# PGPASSWORD='redhat' psql -h 10.12.214.187  -p 5432 -U foreman -d foreman -c "SELECT 1 as ping"
-# PGPASSWORD='redhat' psql -h 10.12.214.187  -p 5432 -U candlepin -d candlepin -c "SELECT 1 as ping"
+# PGPASSWORD='redhat' psql -h <HOST IP>  -p 5432 -U foreman -d foreman -c "SELECT 1 as ping"
+# PGPASSWORD='redhat' psql -h <HOST IP>  -p 5432 -U candlepin -d candlepin -c "SELECT 1 as ping"
 
 
 Start the Mongodb container and restore dump:
-$ sudo podman run --name batman-mongodb -p 10.12.214.187:27017:27017 -d -e MONGODB_USER=pulp -e MONGODB_PASSWORD=redhat -e MONGODB_DATABASE=pulp_database -e MONGODB_ADMIN_PASSWORD=redhat -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=redhat -v /var/tmp/backup/mongo:/var/lib/mongodb/data mongodb-34-rhel7
+$ sudo podman run --name batman-mongodb -p <HOST IP>:27017:27017 -d -e MONGODB_USER=pulp -e MONGODB_PASSWORD=redhat -e MONGODB_DATABASE=pulp_database -e MONGODB_ADMIN_PASSWORD=redhat -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=redhat -v /var/tmp/backup/mongo:/var/lib/mongodb/data mongodb-34-rhel7
 $ sudo podman exec -it 27 /bin/bash
 $ mkdir /var/lib/mongodb/backup
 $ mv /var/lib/mongodb/pulp_database/ /var/lib/mongodb/backup
@@ -48,9 +53,9 @@ $ mongo -u admin -p redhat --authenticationDatabase admin
 > db.createUser({user: "pulp", pwd: "redhat", roles: [ {role: "dbOwner", db: "pulp_database"}, {role: "readWrite", db: "pulp_database"} ]})
 
 Test connection from Satellite to database host:
-# scl enable rh-mongodb34 " mongo --host 10.12.214.187 -u pulp -p redhat --port 27017 --eval 'ping:1' pulp_database"
+# scl enable rh-mongodb34 " mongo --host <HOST IP> -u pulp -p redhat --port 27017 --eval 'ping:1' pulp_database"
 
 
 Configure Satellite to point to db host and use databases:
-# satellite-installer --scenario satellite --foreman-db-host 10.12.214.187 --foreman-db-password redhat --foreman-db-database foreman --foreman-db-manage false --katello-candlepin-db-host 10.12.214.187 --katello-candlepin-db-name candlepin --katello-candlepin-db-password redhat --katello-candlepin-manage-db false --katello-pulp-db-username pulp --katello-pulp-db-password redhat --katello-pulp-db-seeds 10.12.214.187:27017 --katello-pulp-db-name pulp_database --katello-pulp-manage-db false
+# satellite-installer --scenario satellite --foreman-db-host <HOST IP> --foreman-db-password redhat --foreman-db-database foreman --foreman-db-manage false --katello-candlepin-db-host <HOST IP> --katello-candlepin-db-name candlepin --katello-candlepin-db-password redhat --katello-candlepin-manage-db false --katello-pulp-db-username pulp --katello-pulp-db-password redhat --katello-pulp-db-seeds <HOST IP>:27017 --katello-pulp-db-name pulp_database --katello-pulp-manage-db false
 # katello-service restart
