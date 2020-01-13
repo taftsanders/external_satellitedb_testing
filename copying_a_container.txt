@@ -1,0 +1,17 @@
+- Copy any files over saved locally for the container
+# rsync -av /var/tmp/backup/ root@newhost.example.com:/var/tmp/backup/
+
+- Save container to an image
+# sudo podman commit <CONTAINER ID> <NEW IMAGE NAME>
+
+- Save the image to a tar file
+# sudo podman save -o <SAVE FILE LOCATION> <CONTAINER IMAGE ID>
+
+- Copy the container image to the new host
+# scp <SAVED FILE> root@newhost.example.com:
+
+- Load the saved image
+# sudo podman load -i <SAVED FILE>
+
+- Run container with previously used run command
+# sudo podman run --name batman-postgres -p <NEW HOST IP>:5432:5432 -e POSTGRES_PASSWORD=redhat -v /var/tmp/backup/postgres:/var/lib/postgresql -d <CONTAINER IMAGE ID>
